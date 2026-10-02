@@ -16,6 +16,7 @@ CREATE TABLE users (
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
     phone VARCHAR(20) UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -23,13 +24,17 @@ CREATE TABLE users (
 -- 2. ACCOUNTS TABLE
 CREATE TABLE accounts (
     account_id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    account_type VARCHAR(20) NOT NULL CHECK (account_type IN ('SAVINGS', 'CURRENT')),
+    user_id BIGINT,
+    account_type VARCHAR(20) NOT NULL CHECK (account_type IN ('SAVINGS', 'CURRENT', 'SYSTEM')),
     balance BIGINT NOT NULL DEFAULT 0 CHECK (balance >= 0),
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'BLOCKED', 'CLOSED')),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_accounts_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT fk_accounts_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT chk_system_user CHECK (
+        (account_type = 'SYSTEM' AND user_id IS NULL) OR
+        (account_type IN ('SAVINGS', 'CURRENT') AND user_id IS NOT NULL)
+    )
 );
 
 -- 3. TRANSACTIONS TABLE
@@ -68,6 +73,7 @@ CREATE TABLE idempotency_keys (
 -- INDEXES
 -- --------------------------------------------------------
 CREATE INDEX idx_accounts_user_id ON accounts(user_id);
+CREATE UNIQUE INDEX idx_unique_system_account ON accounts(account_type) WHERE account_type = 'SYSTEM';
 CREATE INDEX idx_ledger_entries_account_id ON ledger_entries(account_id);
 CREATE INDEX idx_ledger_entries_txn_id ON ledger_entries(txn_id);
 CREATE INDEX idx_transactions_created_at ON transactions(created_at);

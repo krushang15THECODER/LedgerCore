@@ -33,10 +33,30 @@ async function getAccountForUpdate(client, accountId) {
   };
 }
 
+async function getSystemCashAccount(client) {
+  const result = await client.query(`SELECT account_id FROM accounts WHERE account_type = 'SYSTEM'`);
+  if (result.rowCount === 0) throw new Error("SYSTEM_CASH account is missing.");
+  return Number(result.rows[0].account_id);
+}
+
 function businessError(message, status = 400) {
   const err = new Error(message);
   err.status = status;
   return err;
+}
+
+async function verifyLedgerInvariant(client, txnId) {
+  const check = await client.query(
+    `SELECT
+        COALESCE(SUM(CASE WHEN entry_type = 'DEBIT' THEN amount ELSE 0 END), 0) AS total_debit,
+        COALESCE(SUM(CASE WHEN entry_type = 'CREDIT' THEN amount ELSE 0 END), 0) AS total_credit
+     FROM ledger_entries
+     WHERE txn_id = $1`,
+    [txnId]
+  );
+  if (check.rows[0].total_debit !== check.rows[0].total_credit) {
+    throw businessError("Ledger invariant violation: DEBIT != CREDIT", 500);
+  }
 }
 
 // ============================================================
@@ -225,6 +245,12 @@ export async function transfer({
     }
 
     // --------------------------------------------------------
+    // VERIFY LEDGER INVARIANT
+    // --------------------------------------------------------
+
+    await verifyLedgerInvariant(client, txnId);
+
+    // --------------------------------------------------------
     // COMMIT
     // --------------------------------------------------------
 
@@ -262,7 +288,9 @@ export async function deposit({
     idempotencyKey,
     type: "DEPOSIT",
     entryType: "CREDIT",
+    systemEntryType: "DEBIT",
     balanceExpression: "balance + $1",
+    systemBalanceExpression: "balance - $1",
     referencePrefix: "TXN-DEP",
   });
 }
@@ -284,7 +312,9 @@ export async function withdrawal({
     idempotencyKey,
     type: "WITHDRAWAL",
     entryType: "DEBIT",
+    systemEntryType: "CREDIT",
     balanceExpression: "balance - $1",
+    systemBalanceExpression: "balance + $1",
     referencePrefix: "TXN-WDR",
   });
 }
@@ -300,7 +330,9 @@ async function simpleMoneyTransaction({
   idempotencyKey,
   type,
   entryType,
+  systemEntryType,
   balanceExpression,
+  systemBalanceExpression,
   referencePrefix,
 }) {
   const client = await pool.connect();
@@ -333,19 +365,29 @@ async function simpleMoneyTransaction({
     }
 
     // --------------------------------------------------------
-    // LOCK ACCOUNT
+    // LOCK ACCOUNTS DETERMINISTICALLY
     // --------------------------------------------------------
 
-    const account = await getAccountForUpdate(
-      client,
-      accountId
-    );
+    const systemAccountId = await getSystemCashAccount(client);
+    
+    if (accountId === systemAccountId) {
+      throw businessError("Cannot perform deposit/withdrawal directly on the SYSTEM_CASH account.");
+    }
+
+    const firstId = Math.min(accountId, systemAccountId);
+    const secondId = Math.max(accountId, systemAccountId);
+
+    const first = await getAccountForUpdate(client, firstId);
+    const second = await getAccountForUpdate(client, secondId);
+
+    const account = accountId === first.account_id ? first : second;
+    const system = systemAccountId === first.account_id ? first : second;
 
     if (!account) {
-      throw businessError(
-        "Account not found.",
-        404
-      );
+      throw businessError("Account not found.", 404);
+    }
+    if (!system) {
+      throw businessError("SYSTEM_CASH account not found.", 500);
     }
 
     // --------------------------------------------------------
@@ -357,11 +399,19 @@ async function simpleMoneyTransaction({
     }
 
     // --------------------------------------------------------
-    // WITHDRAWAL BALANCE CHECK
+    // BALANCE CHECKS
     // --------------------------------------------------------
 
     if (type === "WITHDRAWAL" && account.balance < amount) {
       throw businessError("Insufficient balance.", 400);
+    }
+    
+    if (type === "DEBIT" && system.balance < amount) { 
+      // wait, type is DEPOSIT not DEBIT. DEPOSIT decreases SYSTEM_CASH balance.
+    }
+    
+    if (type === "DEPOSIT" && system.balance < amount) {
+      throw businessError("Insufficient system cash liquidity.", 400);
     }
 
     // --------------------------------------------------------
@@ -385,23 +435,27 @@ async function simpleMoneyTransaction({
     const txnId = txn.rows[0].txn_id;
 
     // --------------------------------------------------------
-    // CREATE LEDGER ENTRY
+    // CREATE LEDGER ENTRIES
     // --------------------------------------------------------
 
     await client.query(
       `INSERT INTO ledger_entries
          (txn_id, account_id, entry_type, amount)
-       VALUES ($1, $2, $3, $4)`,
+       VALUES
+         ($1, $2, $3, $4),
+         ($1, $5, $6, $4)`,
       [
         txnId,
         accountId,
         entryType,
         amount,
+        systemAccountId,
+        systemEntryType
       ]
     );
 
     // --------------------------------------------------------
-    // UPDATE ACCOUNT BALANCE
+    // UPDATE BALANCES
     // --------------------------------------------------------
 
     await client.query(
@@ -409,6 +463,13 @@ async function simpleMoneyTransaction({
        SET balance = ${balanceExpression}
        WHERE account_id = $2`,
       [amount, accountId]
+    );
+
+    await client.query(
+      `UPDATE accounts
+       SET balance = ${systemBalanceExpression}
+       WHERE account_id = $2`,
+      [amount, systemAccountId]
     );
 
     // --------------------------------------------------------
@@ -436,6 +497,12 @@ async function simpleMoneyTransaction({
         [idempotencyKey, txnId]
       );
     }
+
+    // --------------------------------------------------------
+    // VERIFY LEDGER INVARIANT
+    // --------------------------------------------------------
+
+    await verifyLedgerInvariant(client, txnId);
 
     // --------------------------------------------------------
     // COMMIT

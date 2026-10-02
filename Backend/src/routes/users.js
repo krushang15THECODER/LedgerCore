@@ -1,8 +1,10 @@
 import { Router } from "express";
 import pool from "../db/pool.js";
 import { id, required } from "../utils/validation.js";
+import { authenticateUser } from "../middleware/auth.js";
 
 const router = Router();
+router.use(authenticateUser);
 
 router.post("/", async (req, res) => {
   const { name, email, phone } = req.body;
@@ -20,14 +22,15 @@ router.post("/", async (req, res) => {
 });
 
 router.get("/", async (req, res) => {
-  const result = await pool.query(
-    "SELECT * FROM users ORDER BY user_id"
-  );
-  res.json({ success: true, users: result.rows });
+  return res.status(403).json({ success: false, error: "Access denied." });
 });
 
 router.get("/:userId", async (req, res) => {
   const userId = id(req.params.userId, "userId");
+
+  if (userId !== Number(req.user.id)) {
+    return res.status(403).json({ success: false, error: "Access denied." });
+  }
 
   const result = await pool.query(
     `SELECT * FROM users WHERE user_id = $1`,
@@ -43,6 +46,11 @@ router.get("/:userId", async (req, res) => {
 
 router.put("/:userId", async (req, res) => {
   const userId = id(req.params.userId, "userId");
+  
+  if (userId !== Number(req.user.id)) {
+    return res.status(403).json({ success: false, error: "Access denied." });
+  }
+
   const { name, email, phone } = req.body;
 
   required(name, "name");
@@ -65,6 +73,10 @@ router.put("/:userId", async (req, res) => {
 
 router.delete("/:userId", async (req, res) => {
   const userId = id(req.params.userId, "userId");
+
+  if (userId !== Number(req.user.id)) {
+    return res.status(403).json({ success: false, error: "Access denied." });
+  }
 
   const result = await pool.query(
     "DELETE FROM users WHERE user_id = $1 RETURNING *",

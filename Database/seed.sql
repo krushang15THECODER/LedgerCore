@@ -6,11 +6,11 @@
 TRUNCATE TABLE idempotency_keys, ledger_entries, transactions, accounts, users RESTART IDENTITY CASCADE;
 
 -- 1. Insert Users
-INSERT INTO users (name, email, phone) VALUES
-('Alice Smith', 'alice@example.com', '+919876543210'),
-('Bob Johnson', 'bob@example.com', '+919876543211'),
-('Charlie Brown', 'charlie@example.com', '+919876543212'),
-('Diana Prince', 'diana@example.com', '+919876543213');
+INSERT INTO users (name, email, phone, password_hash) VALUES
+('Alice Smith', 'alice@example.com', '+919876543210', '$2b$10$dummyHash12345678901234'),
+('Bob Johnson', 'bob@example.com', '+919876543211', '$2b$10$dummyHash12345678901234'),
+('Charlie Brown', 'charlie@example.com', '+919876543212', '$2b$10$dummyHash12345678901234'),
+('Diana Prince', 'diana@example.com', '+919876543213', '$2b$10$dummyHash12345678901234');
 
 -- 2. Insert Accounts (Balance in paise: ₹1 = 100 paise)
 INSERT INTO accounts (user_id, account_type, balance, status) VALUES
@@ -18,15 +18,17 @@ INSERT INTO accounts (user_id, account_type, balance, status) VALUES
 (2, 'CURRENT', 10000000, 'ACTIVE'), -- Account 2: Bob, ₹1,00,000
 (3, 'SAVINGS', 0, 'BLOCKED'),       -- Account 3: Charlie, ₹0 (Blocked)
 (4, 'SAVINGS', 200000, 'CLOSED'),   -- Account 4: Diana, ₹2,000 (Closed)
-(1, 'CURRENT', 1500000, 'ACTIVE');  -- Account 5: Alice, ₹15,000
+(1, 'CURRENT', 1500000, 'ACTIVE'),  -- Account 5: Alice, ₹15,000
+(NULL, 'SYSTEM', 1000000000, 'ACTIVE'); -- Account 6: SYSTEM_CASH development opening balance / liquidity reserve, ₹1,00,00,000
 
 -- 3. Insert Transactions & Ledger Entries
 
--- Transaction 1: Alice initial deposit of ₹50,000 (We use CREDIT entry to reflect the deposit)
+-- Transaction 1: Alice initial deposit of ₹50,000
 INSERT INTO transactions (reference_no, txn_type, status, description) VALUES
 ('TXN-DEP-001', 'DEPOSIT', 'COMPLETED', 'Initial Deposit for Alice');
 
 INSERT INTO ledger_entries (txn_id, account_id, entry_type, amount) VALUES
+(1, 6, 'DEBIT', 5000000),
 (1, 1, 'CREDIT', 5000000);
 
 -- Transaction 2: Bob initial deposit of ₹1,00,000
@@ -34,6 +36,7 @@ INSERT INTO transactions (reference_no, txn_type, status, description) VALUES
 ('TXN-DEP-002', 'DEPOSIT', 'COMPLETED', 'Initial Deposit for Bob');
 
 INSERT INTO ledger_entries (txn_id, account_id, entry_type, amount) VALUES
+(2, 6, 'DEBIT', 10000000),
 (2, 2, 'CREDIT', 10000000);
 
 -- Transaction 3: Transfer ₹5,000 from Alice (1) to Bob (2) -> fully balanced double-entry
