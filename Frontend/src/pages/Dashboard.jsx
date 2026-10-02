@@ -111,14 +111,14 @@ const Dashboard = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--spacing-8)', alignItems: 'start' }}>
         
         {/* Account Summary */}
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--spacing-4)' }}>
+        <div className="surface" style={{ padding: 'var(--spacing-6)', border: '1px solid var(--color-divider)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--spacing-6)' }}>
             <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Active Endpoints</h3>
             <Link to="/accounts" className="meta-label" style={{ color: 'var(--color-text-primary)' }}>VIEW ALL</Link>
           </div>
 
           {accountsData.length === 0 ? (
-            <div className="text-muted font-mono" style={{ borderTop: '1px solid var(--color-divider)', padding: 'var(--spacing-3) 0', fontSize: '0.875rem' }}>
+            <div className="text-muted font-mono" style={{ borderTop: '1px solid var(--color-divider)', padding: 'var(--spacing-4) 0', fontSize: '0.875rem' }}>
               No active accounts found on ledger.
             </div>
           ) : (
@@ -128,18 +128,18 @@ const Dashboard = () => {
                   display: 'flex', 
                   justifyContent: 'space-between', 
                   alignItems: 'center',
-                  padding: 'var(--spacing-3) 0',
+                  padding: 'var(--spacing-4) 0',
                   borderBottom: '1px solid var(--color-divider)'
                 }}>
                   <div>
                     <div className="font-mono" style={{ fontSize: '0.875rem' }}>
                       AC-{acc.account_id.toString().padStart(4, '0')}
                     </div>
-                    <div className="meta-label" style={{ marginTop: '0.15rem', color: acc.status === 'ACTIVE' ? 'var(--color-positive)' : 'var(--color-text-secondary)' }}>
+                    <div className="meta-label" style={{ marginTop: '0.25rem', color: acc.status === 'ACTIVE' ? 'var(--color-positive)' : 'var(--color-text-secondary)' }}>
                       {acc.account_type} • {acc.status}
                     </div>
                   </div>
-                  <div className="font-mono" style={{ fontSize: '1rem' }}>
+                  <div className="font-mono" style={{ fontSize: '1.125rem' }}>
                     ₹{(Number(acc.balance) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </div>
                 </div>
@@ -149,14 +149,14 @@ const Dashboard = () => {
         </div>
 
         {/* Recent Transactions */}
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--spacing-4)' }}>
+        <div className="surface" style={{ padding: 'var(--spacing-6)', border: '1px solid var(--color-divider)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--spacing-6)' }}>
             <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Recent Operations</h3>
             <Link to="/transactions" className="meta-label" style={{ color: 'var(--color-text-primary)' }}>VIEW ALL</Link>
           </div>
 
           {dashboardData.recent_transactions.length === 0 ? (
-            <div className="text-muted font-mono" style={{ borderTop: '1px solid var(--color-divider)', padding: 'var(--spacing-3) 0', fontSize: '0.875rem' }}>
+            <div className="text-muted font-mono" style={{ borderTop: '1px solid var(--color-divider)', padding: 'var(--spacing-4) 0', fontSize: '0.875rem' }}>
               No operations recorded on ledger.
             </div>
           ) : (
@@ -166,14 +166,14 @@ const Dashboard = () => {
                   display: 'flex', 
                   justifyContent: 'space-between', 
                   alignItems: 'flex-start',
-                  padding: 'var(--spacing-3) 0',
+                  padding: 'var(--spacing-4) 0',
                   borderBottom: '1px solid var(--color-divider)'
                 }}>
                   <div>
                     <div className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
                       {new Date(txn.created_at).toISOString().replace('T', ' ').substring(0, 16)}
                     </div>
-                    <div style={{ fontSize: '0.875rem', fontWeight: 500, marginTop: '0.15rem' }}>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 500, marginTop: '0.25rem' }}>
                       {txn.txn_type} <span className="font-mono text-muted" style={{ fontSize: '0.75rem', marginLeft: '0.25rem' }}>#{txn.reference_no}</span>
                     </div>
                   </div>

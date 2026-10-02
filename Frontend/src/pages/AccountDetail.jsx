@@ -15,20 +15,20 @@ const AccountDetail = () => {
   const [activeOperation, setActiveOperation] = useState(null); // 'DEPOSIT' | 'WITHDRAW' | 'TRANSFER'
   const [opAmount, setOpAmount] = useState('');
   const [opDestination, setOpDestination] = useState('');
-  const [eligibleAccounts, setEligibleAccounts] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [opError, setOpError] = useState(null);
   const [opSuccess, setOpSuccess] = useState('');
+  
+  // Review State for Transfer
+  const [isReviewing, setIsReviewing] = useState(false);
 
   const fetchAccountData = useCallback(async () => {
     try {
-      // Fetch account details independently
       const accRes = await api.get(`/accounts/${accountId}`);
       if (accRes.data.success) {
         setAccount(accRes.data.account);
       }
       
-      // Attempt to fetch history independently so a backend SQL error doesn't crash the whole page
       try {
         const histRes = await api.get(`/transactions/account/${accountId}/history?limit=50`);
         if (histRes.data.success) {
@@ -36,7 +36,6 @@ const AccountDetail = () => {
         }
       } catch (histErr) {
         console.warn("Backend history endpoint failed:", histErr.response?.data?.error);
-        // We do not set the main page error, we just leave history empty
       }
       
     } catch (err) {
@@ -52,52 +51,51 @@ const AccountDetail = () => {
     return () => { isMounted = false; };
   }, [fetchAccountData]);
 
-  const loadEligibleAccounts = async () => {
-    try {
-      const response = await api.get('/accounts/me');
-      if (response.data.success) {
-        setEligibleAccounts(
-          response.data.accounts.filter(a => a.account_type !== 'SYSTEM' && a.account_id !== Number(accountId) && a.status === 'ACTIVE')
-        );
-      }
-    } catch (err) {
-      console.error("Failed to load destination accounts.");
-    }
-  };
-
   const openOperation = (type) => {
     setActiveOperation(type);
     setOpAmount('');
     setOpDestination('');
     setOpError(null);
     setOpSuccess('');
-    if (type === 'TRANSFER') {
-      loadEligibleAccounts();
-    }
+    setIsReviewing(false);
   };
 
   const closeOperation = () => {
     setActiveOperation(null);
     setOpError(null);
+    setIsReviewing(false);
   };
 
-  const handleOperationSubmit = async () => {
+  const handleReviewTransfer = () => {
     setOpError(null);
-    
-    // Basic frontend validation
     const parsedAmount = parseFloat(opAmount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       setOpError("Please enter a valid positive amount.");
       return;
     }
+    const dest = opDestination.trim();
+    if (!dest || dest === '' || isNaN(Number(dest))) {
+      setOpError("Please enter a valid numeric recipient account ID.");
+      return;
+    }
+    if (dest === accountId) {
+      setOpError("Cannot transfer to the same account.");
+      return;
+    }
+    setIsReviewing(true);
+  };
+
+  const handleOperationSubmit = async () => {
+    setOpError(null);
     
-    if (activeOperation === 'TRANSFER' && !opDestination) {
-      setOpError("Please select a valid destination account.");
+    const parsedAmount = parseFloat(opAmount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      setOpError("Please enter a valid positive amount.");
       return;
     }
 
     const amountInPaise = Math.round(parsedAmount * 100);
-    const idempotencyKey = crypto.randomUUID(); // Prevent duplicate submissions
+    const idempotencyKey = crypto.randomUUID(); 
 
     setIsSubmitting(true);
     setOpSuccess('');
@@ -113,19 +111,31 @@ const AccountDetail = () => {
       } else if (activeOperation === 'TRANSFER') {
         response = await api.post('/transactions/transfer', { 
           from_account_id: accountId, 
-          to_account_id: opDestination, 
+          to_account_id: opDestination.trim(), 
           amount: amountInPaise 
         }, { headers });
       }
 
       if (response.data.success) {
-        setOpSuccess(`TRANSACTION POSTED\n${activeOperation} of ₹${parsedAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} completed successfully.`);
+        const refInfo = response.data.transaction?.reference_no ? `\nReference: ${response.data.transaction.reference_no}` : '';
+        setOpSuccess(`${activeOperation === 'TRANSFER' ? 'TRANSFER COMPLETE' : 'TRANSACTION POSTED'}\n${activeOperation === 'TRANSFER' ? `₹${parsedAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} transferred` : `Operation completed successfully.`}${refInfo}`);
         closeOperation();
         await fetchAccountData();
         setTimeout(() => setOpSuccess(''), 6000);
       }
     } catch (err) {
-      setOpError(err.response?.data?.error || 'TRANSACTION FAILED\nThe operation could not be completed.');
+      let errorMsg = err.response?.data?.error || 'TRANSACTION FAILED\nThe operation could not be completed.';
+      
+      // Improve specific backend errors for better UX
+      if (errorMsg === "One or both accounts do not exist.") {
+        errorMsg = "INVALID RECIPIENT\nThe destination account number you entered does not exist.";
+      }
+      
+      setOpError(errorMsg);
+      
+      if (activeOperation === 'TRANSFER') {
+        setIsReviewing(false); // kick back to form on error
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -203,7 +213,7 @@ const AccountDetail = () => {
         </div>
       )}
 
-      {activeOperation && (
+      {activeOperation && !isReviewing && (
         <div className="surface animate-reveal-down" style={{ marginBottom: 'var(--spacing-12)', border: '1px solid var(--color-divider)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-6)' }}>
             <h3 style={{ margin: 0, fontSize: '1.25rem' }}>{activeOperation} FUNDS</h3>
@@ -217,7 +227,6 @@ const AccountDetail = () => {
           </div>
 
           <div style={{ display: 'grid', gap: 'var(--spacing-6)', marginBottom: 'var(--spacing-8)' }}>
-            {/* Context Display */}
             <div style={{ padding: 'var(--spacing-4)', background: 'var(--color-bg-primary)', border: '1px solid var(--color-divider)' }}>
               <span className="meta-label" style={{ display: 'block', marginBottom: 'var(--spacing-2)' }}>
                 {activeOperation === 'TRANSFER' ? 'FROM ACCOUNT' : 'ACCOUNT'}
@@ -227,14 +236,19 @@ const AccountDetail = () => {
               </div>
             </div>
 
-            {/* Transfer Destination */}
             {activeOperation === 'TRANSFER' && (
               <div>
-                <span className="meta-label" style={{ display: 'block', marginBottom: 'var(--spacing-2)' }}>TO ACCOUNT</span>
-                <select 
-                  className="font-mono"
+                <span className="meta-label" style={{ display: 'block', marginBottom: 'var(--spacing-2)' }}>RECIPIENT ACCOUNT</span>
+                <input 
+                  type="text"
+                  placeholder="Enter numeric account ID (max 12 digits)"
+                  maxLength={12}
                   value={opDestination} 
-                  onChange={(e) => setOpDestination(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, ''); // only allow digits
+                    setOpDestination(val);
+                  }}
+                  className="font-mono"
                   style={{ 
                     width: '100%', 
                     padding: 'var(--spacing-3)', 
@@ -242,18 +256,10 @@ const AccountDetail = () => {
                     border: '1px solid var(--color-divider)',
                     color: 'var(--color-text-primary)'
                   }}
-                >
-                  <option value="">-- Select Destination Endpoint --</option>
-                  {eligibleAccounts.map(a => (
-                    <option key={a.account_id} value={a.account_id}>
-                      •••• {a.account_id.toString().slice(-4).padStart(4, '0')} ({a.account_type})
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
             )}
 
-            {/* Amount Input */}
             <div>
               <span className="meta-label" style={{ display: 'block', marginBottom: 'var(--spacing-2)' }}>AMOUNT (₹)</span>
               <input 
@@ -283,13 +289,74 @@ const AccountDetail = () => {
           )}
 
           <div style={{ display: 'flex', gap: 'var(--spacing-4)' }}>
+            {activeOperation === 'TRANSFER' ? (
+              <button 
+                className="btn-primary" 
+                disabled={!opAmount || !opDestination}
+                onClick={handleReviewTransfer}
+                style={{ opacity: (!opAmount || !opDestination) ? 0.5 : 1 }}
+              >
+                REVIEW TRANSFER
+              </button>
+            ) : (
+              <button 
+                className="btn-primary" 
+                disabled={isSubmitting || !opAmount}
+                onClick={handleOperationSubmit}
+                style={{ opacity: (isSubmitting || !opAmount) ? 0.5 : 1 }}
+              >
+                {isSubmitting ? 'PROCESSING...' : `CONFIRM ${activeOperation}`}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Transfer Review State */}
+      {isReviewing && activeOperation === 'TRANSFER' && (
+        <div className="surface animate-reveal-down" style={{ marginBottom: 'var(--spacing-12)', border: '1px solid var(--color-divider)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-6)' }}>
+            <h3 style={{ margin: 0, fontSize: '1.25rem' }}>REVIEW TRANSFER</h3>
+            <button 
+              className="meta-label" 
+              onClick={() => setIsReviewing(false)}
+              style={{ color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              [ CANCEL ]
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gap: 'var(--spacing-6)', marginBottom: 'var(--spacing-8)' }}>
+            <div>
+              <span className="meta-label" style={{ display: 'block', marginBottom: 'var(--spacing-2)' }}>FROM</span>
+              <div className="font-mono">•••• {account.account_id.toString().slice(-4).padStart(4, '0')}</div>
+            </div>
+            <div>
+              <span className="meta-label" style={{ display: 'block', marginBottom: 'var(--spacing-2)' }}>TO</span>
+              <div className="font-mono">•••• {opDestination.toString().slice(-4).padStart(4, '0')}</div>
+            </div>
+            <div>
+              <span className="meta-label" style={{ display: 'block', marginBottom: 'var(--spacing-2)' }}>AMOUNT</span>
+              <div className="font-serif" style={{ fontSize: '1.5rem' }}>
+                ₹{parseFloat(opAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </div>
+            </div>
+          </div>
+
+          {opError && (
+            <div className="text-negative font-mono" style={{ marginBottom: 'var(--spacing-6)', whiteSpace: 'pre-line', padding: 'var(--spacing-4)', borderLeft: '4px solid var(--color-negative)', background: 'var(--color-bg-primary)' }}>
+              {opError}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 'var(--spacing-4)' }}>
             <button 
               className="btn-primary" 
-              disabled={isSubmitting || !opAmount || (activeOperation === 'TRANSFER' && !opDestination)}
+              disabled={isSubmitting}
               onClick={handleOperationSubmit}
-              style={{ opacity: (isSubmitting || !opAmount || (activeOperation === 'TRANSFER' && !opDestination)) ? 0.5 : 1 }}
+              style={{ opacity: isSubmitting ? 0.5 : 1 }}
             >
-              {isSubmitting ? 'PROCESSING...' : `CONFIRM ${activeOperation}`}
+              {isSubmitting ? 'PROCESSING...' : 'CONFIRM TRANSFER'}
             </button>
           </div>
         </div>
