@@ -1,5 +1,8 @@
 @import './tokens.css';
 
+/* ==========================================================================
+   RESET & BASE
+   ========================================================================== */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -10,22 +13,141 @@ body {
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
-  line-height: 1.5;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  position: relative;
 }
 
-h1, h2, h3, h4, h5, h6 {
+/* Subtle Accounting Ledger Grid Background */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.4; /* Extremely faint */
+  background-image: 
+    /* Horizontal ledger lines (generous spacing) */
+    repeating-linear-gradient(to bottom, transparent, transparent 79px, var(--color-divider) 79px, var(--color-divider) 80px),
+    /* Asymmetric vertical rules (margins, not graph paper) */
+    linear-gradient(to right, transparent 8%, var(--color-divider) 8%, var(--color-divider) calc(8% + 1px), transparent calc(8% + 1px)),
+    linear-gradient(to right, transparent 20%, var(--color-divider) 20%, var(--color-divider) calc(20% + 1px), transparent calc(20% + 1px)),
+    linear-gradient(to right, transparent 88%, var(--color-divider) 88%, var(--color-divider) calc(88% + 1px), transparent calc(88% + 1px));
+}
+
+/* ==========================================================================
+   TYPOGRAPHY HIERARCHY
+   ========================================================================== */
+h1, h2, h3, h4, h5, h6, .font-serif {
   font-family: var(--font-serif);
-  font-weight: normal;
+  font-weight: 400; /* Strict editorial feel */
   color: var(--color-text-primary);
   margin-bottom: var(--spacing-4);
+  line-height: 1.2;
 }
 
+h1 { font-size: clamp(2rem, 4vw, 3rem); }
+h2 { font-size: clamp(1.5rem, 3vw, 2.25rem); }
+h3 { font-size: 1.5rem; }
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+.font-mono, .technical-data {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  letter-spacing: 0.02em;
+}
+
+/* ==========================================================================
+   SEMANTIC COLORS & STATES
+   ========================================================================== */
+.text-positive { color: var(--color-positive); }
+.text-negative { color: var(--color-negative); }
+.text-muted { color: var(--color-text-secondary); }
+
+/* ==========================================================================
+   ARCHITECTURAL LAYOUT & PRIMITIVES
+   ========================================================================== */
+.container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--spacing-8) var(--spacing-4);
+}
+
+/* Base Surface / Structured Grid Item */
+.surface {
+  background-color: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-6);
+  /* No shadows for architectural feel */
+}
+
+/* Horizontal Rules */
+.hr-structural {
+  border: 0;
+  border-top: 1px solid var(--color-divider);
+  margin: var(--spacing-8) 0;
+}
+
+/* Compact Metadata Labels */
+.meta-label {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  margin-bottom: var(--spacing-1);
+  display: block;
+}
+
+/* Dense Financial Tables */
+.financial-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.financial-table th {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  padding: var(--spacing-3) var(--spacing-4);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.financial-table td {
+  padding: var(--spacing-4);
+  border-bottom: 1px solid var(--color-divider);
+  font-family: var(--font-sans);
+}
+
+.financial-table td.numeric {
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+/* ==========================================================================
+   FORMS & BUTTONS
+   ========================================================================== */
 a {
   color: inherit;
   text-decoration: none;
+  transition: opacity var(--transition-fast);
 }
+a:hover { opacity: 0.7; }
 
 button {
   font-family: var(--font-sans);
@@ -34,55 +156,193 @@ button {
   background: none;
 }
 
-input, textarea, select {
-  font-family: var(--font-sans);
-}
-
-.mono {
-  font-family: var(--font-mono);
-}
-
-/* Layout Utilities */
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: var(--spacing-8);
-}
-
-/* Base Card / Surface */
-.surface {
-  background-color: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-6);
-}
-
-/* Primary Button */
 .btn-primary {
   background-color: var(--color-text-primary);
   color: var(--color-bg-surface);
-  padding: var(--spacing-2) var(--spacing-4);
+  padding: var(--spacing-3) var(--spacing-6);
   border-radius: var(--radius-sm);
   font-weight: 500;
-  transition: background-color 0.2s ease;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .btn-primary:hover {
   background-color: var(--color-text-secondary);
 }
 
-/* Inputs */
 .input-field {
   width: 100%;
-  padding: var(--spacing-2) var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4);
   background-color: transparent;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   color: var(--color-text-primary);
+  font-family: var(--font-sans);
   outline: none;
-  transition: border-color 0.2s ease;
+  transition: border-color var(--transition-fast);
 }
 
 .input-field:focus {
   border-color: var(--color-text-primary);
+}
+
+/* ==========================================================================
+   LEDGERCORE SIGNATURE MOTIFS
+   ========================================================================== */
+/* LC Identifier */
+.lc-identifier {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-divider);
+  padding: var(--spacing-1) var(--spacing-2);
+  display: inline-block;
+  letter-spacing: 0.05em;
+}
+
+/* Vertical Label */
+.vertical-label {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-text-secondary);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  display: flex;
+  align-items: center;
+}
+
+.vertical-label::before {
+  content: '';
+  display: block;
+  width: 1px;
+  height: 40px;
+  background-color: var(--color-divider);
+  margin-bottom: var(--spacing-3);
+}
+
+/* ==========================================================================
+   MOTION
+   ========================================================================== */
+.animate-reveal-down {
+  animation: revealDown var(--transition-normal) forwards;
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+@keyframes revealDown {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   HEADER & NAVIGATION
+   ========================================================================== */
+.header-container {
+  border-bottom: 1px solid var(--color-divider);
+  background-color: var(--color-bg-primary); /* Keeps it integrated, not a solid block */
+  position: relative;
+  z-index: 10;
+}
+
+.header-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: var(--spacing-4) var(--spacing-8);
+}
+
+.header-brand {
+  display: flex;
+  align-items: baseline;
+}
+
+.header-title {
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: 0.05em;
+  font-family: var(--font-serif);
+}
+
+.header-desktop-nav {
+  display: flex;
+  gap: var(--spacing-8);
+}
+
+.header-system-area {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-6);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+}
+
+.system-status {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.05em;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--color-positive);
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.logout-btn {
+  color: var(--color-negative);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+  font-size: 0.75rem;
+  transition: opacity var(--transition-fast);
+}
+
+.logout-btn:hover {
+  opacity: 0.7;
+}
+
+.mobile-menu-toggle {
+  display: none;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.mobile-menu {
+  display: none;
+  border-top: 1px solid var(--color-divider);
+  padding: var(--spacing-4) var(--spacing-8);
+  background-color: var(--color-bg-surface);
+}
+
+/* Responsive Overrides */
+@media (max-width: 900px) {
+  .header-desktop-nav, .header-system-area, .hide-on-mobile {
+    display: none !important;
+  }
+  .mobile-menu-toggle {
+    display: block;
+  }
+  .mobile-menu.open {
+    display: block;
+  }
+  .mobile-nav-links {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+  }
+  .container {
+    padding: var(--spacing-6) var(--spacing-4);
+  }
 }

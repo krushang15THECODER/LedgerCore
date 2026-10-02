@@ -1,83 +1,195 @@
 import React, { useEffect, useState, useContext } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { AuthContext } from '../contexts/AuthContext';
+import PageHeader from '../components/PageHeader';
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
-  const [data, setData] = useState(null);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [accountsData, setAccountsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchDashboard = async () => {
+    let isMounted = true;
+
+    const fetchData = async () => {
       try {
-        const response = await api.get('/dashboard');
-        if (response.data.success) {
-          setData(response.data.dashboard);
+        const [dashRes, accRes] = await Promise.all([
+          api.get('/dashboard'),
+          api.get('/accounts/me')
+        ]);
+
+        if (isMounted) {
+          if (dashRes.data.success) {
+            setDashboardData(dashRes.data.dashboard);
+          }
+          if (accRes.data.success) {
+            // Ensure SYSTEM_CASH is never shown as a user account
+            const userAccounts = accRes.data.accounts.filter(acc => acc.account_type !== 'SYSTEM');
+            setAccountsData(userAccounts);
+          }
         }
       } catch (err) {
-        setError('Failed to load dashboard data.');
+        if (isMounted) {
+          setError('Failed to retrieve financial data. Please verify your connection or re-authenticate.');
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
-    fetchDashboard();
+
+    fetchData();
+    return () => { isMounted = false; };
   }, []);
 
-  if (loading) return <div>Loading dashboard...</div>;
-  if (error) return <div style={{ color: 'var(--color-negative)' }}>{error}</div>;
+  if (loading) {
+    return (
+      <div className="animate-reveal-down font-mono text-muted" style={{ padding: 'var(--spacing-12) 0' }}>
+        INITIALIZING LEDGER TERMINAL...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="animate-reveal-down">
+        <PageHeader identifier="LC / 02" title="SYSTEM ERROR" />
+        <div className="text-negative font-mono">{error}</div>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <h2 style={{ marginBottom: 'var(--spacing-6)' }}>Welcome, {user?.name}</h2>
-      
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 'var(--spacing-6)', marginBottom: 'var(--spacing-8)' }}>
-        <div className="surface">
-          <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-2)' }}>Total Balance</div>
-          <div className="mono" style={{ fontSize: '2rem', color: 'var(--color-positive)' }}>
-            ₹{(data.total_balance / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-          </div>
-        </div>
-        
-        <div className="surface">
-          <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-2)' }}>Active Accounts</div>
-          <div className="mono" style={{ fontSize: '2rem' }}>{data.total_accounts}</div>
-        </div>
+    <div className="animate-reveal-down">
+      <PageHeader 
+        identifier="LC / 02" 
+        title="OVERVIEW" 
+        description="A consolidated view of your accounts and recorded financial activity."
+      />
 
-        <div className="surface">
-          <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-2)' }}>Total Transactions</div>
-          <div className="mono" style={{ fontSize: '2rem' }}>{data.total_transactions}</div>
+      <div style={{ marginBottom: 'var(--spacing-8)' }}>
+        <span className="meta-label">TOTAL ACCOUNT BALANCE</span>
+        <div className="font-serif" style={{ fontSize: 'clamp(2.5rem, 4vw, 3.5rem)', color: 'var(--color-text-primary)', lineHeight: 1.1 }}>
+          ₹{(dashboardData.total_balance / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </div>
       </div>
       
-      <h3>Recent Transactions</h3>
-      <div className="surface" style={{ padding: 0, overflow: 'hidden' }}>
-        {data.recent_transactions.length === 0 ? (
-          <div style={{ padding: 'var(--spacing-6)', color: 'var(--color-text-secondary)' }}>No recent transactions.</div>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-primary)' }}>
-                <th style={{ padding: 'var(--spacing-3) var(--spacing-4)', fontWeight: 500, fontSize: '0.875rem' }}>Date</th>
-                <th style={{ padding: 'var(--spacing-3) var(--spacing-4)', fontWeight: 500, fontSize: '0.875rem' }}>Ref</th>
-                <th style={{ padding: 'var(--spacing-3) var(--spacing-4)', fontWeight: 500, fontSize: '0.875rem' }}>Type</th>
-                <th style={{ padding: 'var(--spacing-3) var(--spacing-4)', fontWeight: 500, fontSize: '0.875rem' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.recent_transactions.map(txn => (
-                <tr key={txn.txn_id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <td className="mono" style={{ padding: 'var(--spacing-3) var(--spacing-4)', fontSize: '0.875rem' }}>
-                    {new Date(txn.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="mono" style={{ padding: 'var(--spacing-3) var(--spacing-4)', fontSize: '0.875rem' }}>{txn.reference_no}</td>
-                  <td style={{ padding: 'var(--spacing-3) var(--spacing-4)', fontSize: '0.875rem' }}>{txn.txn_type}</td>
-                  <td style={{ padding: 'var(--spacing-3) var(--spacing-4)', fontSize: '0.875rem' }}>{txn.status}</td>
-                </tr>
+      {/* Summary Metrics */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', 
+        gap: 'var(--spacing-6)', 
+        marginBottom: 'var(--spacing-8)',
+        borderTop: '1px solid var(--color-divider)',
+        borderBottom: '1px solid var(--color-divider)',
+        padding: 'var(--spacing-4) 0'
+      }}>
+        <div style={{ borderLeft: '1px solid var(--color-divider)', paddingLeft: 'var(--spacing-4)' }}>
+          <span className="meta-label">Total Accounts</span>
+          <div className="font-mono" style={{ fontSize: '1.25rem' }}>
+            {dashboardData.total_accounts.toString().padStart(2, '0')}
+          </div>
+        </div>
+        <div style={{ borderLeft: '1px solid var(--color-divider)', paddingLeft: 'var(--spacing-4)' }}>
+          <span className="meta-label">Active Endpoints</span>
+          <div className="font-mono" style={{ fontSize: '1.25rem' }}>
+            {accountsData.filter(a => a.status === 'ACTIVE').length.toString().padStart(2, '0')}
+          </div>
+        </div>
+        <div style={{ borderLeft: '1px solid var(--color-divider)', paddingLeft: 'var(--spacing-4)' }}>
+          <span className="meta-label">Total Operations</span>
+          <div className="font-mono" style={{ fontSize: '1.25rem' }}>
+            {dashboardData.total_transactions.toString().padStart(3, '0')}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--spacing-8)', alignItems: 'start' }}>
+        
+        {/* Account Summary */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--spacing-4)' }}>
+            <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Active Endpoints</h3>
+            <Link to="/accounts" className="meta-label" style={{ color: 'var(--color-text-primary)' }}>VIEW ALL</Link>
+          </div>
+
+          {accountsData.length === 0 ? (
+            <div className="text-muted font-mono" style={{ borderTop: '1px solid var(--color-divider)', padding: 'var(--spacing-3) 0', fontSize: '0.875rem' }}>
+              No active accounts found on ledger.
+            </div>
+          ) : (
+            <div style={{ borderTop: '1px solid var(--color-divider)' }}>
+              {accountsData.slice(0, 5).map(acc => (
+                <div key={acc.account_id} style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  padding: 'var(--spacing-3) 0',
+                  borderBottom: '1px solid var(--color-divider)'
+                }}>
+                  <div>
+                    <div className="font-mono" style={{ fontSize: '0.875rem' }}>
+                      AC-{acc.account_id.toString().padStart(4, '0')}
+                    </div>
+                    <div className="meta-label" style={{ marginTop: '0.15rem', color: acc.status === 'ACTIVE' ? 'var(--color-positive)' : 'var(--color-text-secondary)' }}>
+                      {acc.account_type} • {acc.status}
+                    </div>
+                  </div>
+                  <div className="font-mono" style={{ fontSize: '1rem' }}>
+                    ₹{(Number(acc.balance) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        )}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Transactions */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--spacing-4)' }}>
+            <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Recent Operations</h3>
+            <Link to="/transactions" className="meta-label" style={{ color: 'var(--color-text-primary)' }}>VIEW ALL</Link>
+          </div>
+
+          {dashboardData.recent_transactions.length === 0 ? (
+            <div className="text-muted font-mono" style={{ borderTop: '1px solid var(--color-divider)', padding: 'var(--spacing-3) 0', fontSize: '0.875rem' }}>
+              No operations recorded on ledger.
+            </div>
+          ) : (
+            <div style={{ borderTop: '1px solid var(--color-divider)' }}>
+              {dashboardData.recent_transactions.map(txn => (
+                <div key={txn.txn_id} style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'flex-start',
+                  padding: 'var(--spacing-3) 0',
+                  borderBottom: '1px solid var(--color-divider)'
+                }}>
+                  <div>
+                    <div className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                      {new Date(txn.created_at).toISOString().replace('T', ' ').substring(0, 16)}
+                    </div>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 500, marginTop: '0.15rem' }}>
+                      {txn.txn_type} <span className="font-mono text-muted" style={{ fontSize: '0.75rem', marginLeft: '0.25rem' }}>#{txn.reference_no}</span>
+                    </div>
+                  </div>
+                  <div className="font-mono" style={{ 
+                    fontSize: '0.875rem', 
+                    textAlign: 'right',
+                    color: txn.status === 'COMPLETED' ? 'var(--color-positive)' : 
+                           txn.status === 'FAILED' ? 'var(--color-negative)' : 'var(--color-text-secondary)'
+                  }}>
+                    {txn.status}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

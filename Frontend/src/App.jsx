@@ -5,6 +5,10 @@ import AppLayout from './layouts/AppLayout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import Accounts from './pages/Accounts';
+import AccountDetail from './pages/AccountDetail';
+import Transactions from './pages/Transactions';
+import TransactionDetail from './pages/TransactionDetail';
 
 function App() {
   return (
@@ -15,6 +19,10 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/accounts" element={<Accounts />} />
+          <Route path="/accounts/:accountId" element={<AccountDetail />} />
+          <Route path="/transactions" element={<Transactions />} />
+          <Route path="/transactions/:txnId" element={<TransactionDetail />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>
