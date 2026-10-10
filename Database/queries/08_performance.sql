@@ -9,8 +9,8 @@
 -- =====================================================================
 BEGIN;
 
-INSERT INTO users (name, email, phone)
-SELECT 'Perf User ' || g, 'perf' || g || '@example.com', '+91700' || lpad(g::text, 7, '0')
+INSERT INTO users (name, email, phone, password_hash)
+SELECT 'Perf User ' || g, 'perf' || g || '@example.com', '+91700' || lpad(g::text, 7, '0'), 'not-a-real-hash'
 FROM generate_series(1, 5000) g;
 
 INSERT INTO accounts (user_id, account_type, balance, status)

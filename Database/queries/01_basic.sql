@@ -44,8 +44,8 @@ SELECT account_id, status FROM accounts WHERE account_id = 5;   -- back to ACTIV
 -- Note: PostgreSQL sequences are NOT rolled back, so the next real user gets
 -- user_id 6 instead of 5. Harmless, but good viva knowledge.
 BEGIN;
-INSERT INTO users (name, email, phone)
-VALUES ('Demo User', 'demo.user@example.com', '+919000000000');
+INSERT INTO users (name, email, phone, password_hash)
+VALUES ('Demo User', 'demo.user@example.com', '+919000000000', 'not-a-real-hash');
 SELECT user_id, name FROM users WHERE email = 'demo.user@example.com';
 DELETE FROM users WHERE email = 'demo.user@example.com';
 SELECT COUNT(*) AS demo_rows_left FROM users WHERE email = 'demo.user@example.com';  -- 0
