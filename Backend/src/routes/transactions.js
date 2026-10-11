@@ -161,22 +161,18 @@ router.get("/account/:accountId/history", async (req, res) => {
 
   const result = await pool.query(
     `SELECT 
-       l.entry_id,
-       l.account_id,
-       l.entry_type,
-       l.amount,
-       t.txn_id,
-       t.reference_no,
-       t.txn_type,
-       t.status,
-       t.description,
-       t.created_at,
-       t.updated_at
-     FROM ledger_entries l
-     JOIN transactions t ON l.txn_id = t.txn_id
-     WHERE l.account_id = $1
-     ORDER BY t.created_at DESC, l.entry_id DESC
-     LIMIT $2 OFFSET $3`,
+       entry_id,
+       $1::BIGINT AS account_id,
+       entry_type,
+       amount,
+       txn_id,
+       reference_no,
+       txn_type,
+       txn_status AS status,
+       description,
+       running_balance,
+       created_at
+     FROM fn_account_statement($1, NULL, NULL, $2, $3)`,
     [accountId, limit, offset]
   );
 

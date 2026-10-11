@@ -132,11 +132,11 @@ const Dashboard = () => {
                   borderBottom: '1px solid var(--color-divider)'
                 }}>
                   <div>
-                    <div className="font-mono" style={{ fontSize: '0.875rem' }}>
+                    <div className="font-mono" style={{ fontSize: '0.875rem', fontWeight: 600 }}>
                       AC-{acc.account_id.toString().padStart(4, '0')}
                     </div>
                     <div className="meta-label" style={{ marginTop: '0.25rem', color: acc.status === 'ACTIVE' ? 'var(--color-positive)' : 'var(--color-text-secondary)' }}>
-                      {acc.account_type} • {acc.status}
+                      {acc.account_type} • {acc.status} • ID: {acc.account_id}
                     </div>
                   </div>
                   <div className="font-mono" style={{ fontSize: '1.125rem' }}>

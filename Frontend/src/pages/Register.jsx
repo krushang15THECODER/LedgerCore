@@ -14,7 +14,13 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post('/auth/register', formData);
+      const payload = {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim() || undefined,
+        password: formData.password
+      };
+      const response = await api.post('/auth/register', payload);
       if (response.data.success) {
         navigate('/login');
       }

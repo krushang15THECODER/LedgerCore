@@ -130,7 +130,7 @@ const TransactionDetail = () => {
                   return (
                     <tr key={entry.entry_id}>
                       <td className="font-mono" style={{ paddingLeft: 'var(--spacing-6)' }}>
-                        •••• {entry.account_id.toString().slice(-4).padStart(4, '0')}
+                        AC-{entry.account_id.toString().padStart(4, '0')} (ID: {entry.account_id})
                       </td>
                       <td style={{ color: entry.entry_type === 'CREDIT' ? 'var(--color-positive)' : 'inherit' }}>
                         {entry.entry_type}

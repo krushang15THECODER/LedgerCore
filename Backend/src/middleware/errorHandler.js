@@ -32,6 +32,20 @@ export function errorHandler(err, req, res, next) {
     });
   }
 
+  if (err.code === "P0002") {
+    return res.status(404).json({
+      success: false,
+      error: err.message,
+    });
+  }
+
+  if (err.code === "22023") {
+    return res.status(400).json({
+      success: false,
+      error: err.message,
+    });
+  }
+
   res.status(err.status || 500).json({
     success: false,
     error: err.message || "Internal server error",

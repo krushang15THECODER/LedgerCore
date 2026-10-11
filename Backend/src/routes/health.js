@@ -51,4 +51,15 @@ router.get("/unbalanced-transfers", async (req, res) => {
   });
 });
 
+router.get("/integrity", async (req, res) => {
+  const result = await pool.query(`SELECT * FROM fn_run_health_checks()`);
+  const failures = result.rows.filter(r => r.status === 'FAIL');
+
+  res.json({
+    success: true,
+    healthy: failures.length === 0,
+    checks: result.rows,
+  });
+});
+
 export default router;

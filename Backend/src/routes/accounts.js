@@ -12,12 +12,12 @@ router.post("/", async (req, res) => {
   const { account_type } = req.body;
   required(account_type, "account_type");
 
-  const result = await pool.query(
-    `INSERT INTO accounts (user_id, account_type)
-     VALUES ($1, $2)
-     RETURNING *`,
+  const callRes = await pool.query(
+    `CALL sp_open_account($1, $2, NULL)`,
     [userId, account_type]
   );
+  const newAccountId = callRes.rows[0].p_account_id;
+  const result = await pool.query(`SELECT * FROM accounts WHERE account_id = $1`, [newAccountId]);
 
   res.status(201).json({ success: true, account: result.rows[0] });
 });
@@ -80,17 +80,17 @@ router.patch("/:accountId/status", async (req, res) => {
   const { status } = req.body;
   required(status, "status");
 
-  const result = await pool.query(
-    `UPDATE accounts
-     SET status = $1
-     WHERE account_id = $2 AND user_id = $3
-     RETURNING *`,
-    [status, accountId, Number(req.user.id)]
+  // Verify ownership
+  const ownerCheck = await pool.query(
+    `SELECT account_id FROM accounts WHERE account_id = $1 AND user_id = $2`,
+    [accountId, Number(req.user.id)]
   );
-
-  if (result.rowCount === 0) {
+  if (ownerCheck.rowCount === 0) {
     return res.status(404).json({ success: false, error: "Account not found or unauthorized." });
   }
+
+  await pool.query(`CALL sp_set_account_status($1, $2)`, [accountId, status]);
+  const result = await pool.query(`SELECT * FROM accounts WHERE account_id = $1`, [accountId]);
 
   res.json({ success: true, account: result.rows[0] });
 });

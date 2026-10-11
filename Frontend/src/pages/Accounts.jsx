@@ -214,7 +214,7 @@ const Accounts = () => {
           <table className="financial-table">
             <thead>
               <tr>
-                <th>Account</th>
+                <th>Account Number / ID</th>
                 <th>Type</th>
                 <th>Status</th>
                 <th style={{ textAlign: 'right' }}>Balance</th>
@@ -230,7 +230,29 @@ const Accounts = () => {
                   onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                   <td className="font-mono">
-                    •••• {acc.account_id.toString().slice(-4).padStart(4, '0')}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)' }}>
+                      <span style={{ fontWeight: 600 }}>AC-{acc.account_id.toString().padStart(4, '0')}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(acc.account_id.toString());
+                        }}
+                        title="Copy Account ID for transfers"
+                        className="meta-label"
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid var(--color-divider)',
+                          padding: '1px 6px',
+                          cursor: 'pointer',
+                          fontSize: '0.7rem'
+                        }}
+                      >
+                        COPY ID
+                      </button>
+                    </div>
+                    <div className="text-muted" style={{ fontSize: '0.75rem', marginTop: '2px' }}>
+                      Account ID: <strong>{acc.account_id}</strong>
+                    </div>
                   </td>
                   <td>{acc.account_type}</td>
                   <td style={{ 

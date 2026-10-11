@@ -20,14 +20,28 @@ router.post("/register", async (req, res) => {
   const saltRounds = 10;
   const passwordHash = await bcrypt.hash(password, saltRounds);
 
-  const result = await pool.query(
-    `INSERT INTO users (name, email, phone, password_hash)
-     VALUES ($1, $2, $3, $4)
-     RETURNING user_id, name, email, phone, created_at, updated_at`,
-    [name, email, phone ?? null, passwordHash]
-  );
+  const cleanPhone = phone && String(phone).trim() !== "" ? String(phone).trim() : null;
 
-  res.status(201).json({ success: true, user: result.rows[0] });
+  try {
+    const result = await pool.query(
+      `INSERT INTO users (name, email, phone, password_hash)
+       VALUES ($1, $2, $3, $4)
+       RETURNING user_id, name, email, phone, created_at, updated_at`,
+      [name, email, cleanPhone, passwordHash]
+    );
+
+    res.status(201).json({ success: true, user: result.rows[0] });
+  } catch (err) {
+    if (err.code === "23505") {
+      if (err.constraint === "users_email_key") {
+        return res.status(409).json({ success: false, error: "An account with this email already exists." });
+      }
+      if (err.constraint === "users_phone_key") {
+        return res.status(409).json({ success: false, error: "An account with this phone number already exists." });
+      }
+    }
+    throw err;
+  }
 });
 
 router.post("/login", async (req, res) => {

@@ -11,11 +11,13 @@ router.post("/", async (req, res) => {
   required(name, "name");
   required(email, "email");
 
+  const cleanPhone = phone && String(phone).trim() !== "" ? String(phone).trim() : null;
+
   const result = await pool.query(
     `INSERT INTO users (name, email, phone)
      VALUES ($1, $2, $3)
      RETURNING *`,
-    [name, email, phone ?? null]
+    [name, email, cleanPhone]
   );
 
   res.status(201).json({ success: true, user: result.rows[0] });
@@ -56,12 +58,14 @@ router.put("/:userId", async (req, res) => {
   required(name, "name");
   required(email, "email");
 
+  const cleanPhone = phone && String(phone).trim() !== "" ? String(phone).trim() : null;
+
   const result = await pool.query(
     `UPDATE users
      SET name = $1, email = $2, phone = $3
      WHERE user_id = $4
      RETURNING *`,
-    [name, email, phone ?? null, userId]
+    [name, email, cleanPhone, userId]
   );
 
   if (result.rowCount === 0) {

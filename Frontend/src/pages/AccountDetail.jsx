@@ -10,6 +10,7 @@ const AccountDetail = () => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   // Operation State
   const [activeOperation, setActiveOperation] = useState(null); // 'DEPOSIT' | 'WITHDRAW' | 'TRANSFER'
@@ -73,12 +74,13 @@ const AccountDetail = () => {
       setOpError("Please enter a valid positive amount.");
       return;
     }
-    const dest = opDestination.trim();
-    if (!dest || dest === '' || isNaN(Number(dest))) {
-      setOpError("Please enter a valid numeric recipient account ID.");
+    const cleaned = opDestination.trim().replace(/^AC-?/i, '');
+    const parsedDestId = parseInt(cleaned, 10);
+    if (isNaN(parsedDestId) || parsedDestId <= 0) {
+      setOpError("Please enter a valid recipient account ID (e.g. 2 or AC-0002).");
       return;
     }
-    if (dest === accountId) {
+    if (parsedDestId === Number(accountId)) {
       setOpError("Cannot transfer to the same account.");
       return;
     }
@@ -109,9 +111,11 @@ const AccountDetail = () => {
       } else if (activeOperation === 'WITHDRAW') {
         response = await api.post('/transactions/withdraw', { account_id: accountId, amount: amountInPaise }, { headers });
       } else if (activeOperation === 'TRANSFER') {
+        const cleaned = opDestination.trim().replace(/^AC-?/i, '');
+        const parsedDestId = parseInt(cleaned, 10);
         response = await api.post('/transactions/transfer', { 
           from_account_id: accountId, 
-          to_account_id: opDestination.trim(), 
+          to_account_id: parsedDestId, 
           amount: amountInPaise 
         }, { headers });
       }
@@ -126,15 +130,14 @@ const AccountDetail = () => {
     } catch (err) {
       let errorMsg = err.response?.data?.error || 'TRANSACTION FAILED\nThe operation could not be completed.';
       
-      // Improve specific backend errors for better UX
-      if (errorMsg === "One or both accounts do not exist.") {
+      if (errorMsg === "One or both accounts do not exist." || errorMsg.includes("does not exist")) {
         errorMsg = "INVALID RECIPIENT\nThe destination account number you entered does not exist.";
       }
       
       setOpError(errorMsg);
       
       if (activeOperation === 'TRANSFER') {
-        setIsReviewing(false); // kick back to form on error
+        setIsReviewing(false);
       }
     } finally {
       setIsSubmitting(false);
@@ -155,6 +158,9 @@ const AccountDetail = () => {
     );
   }
 
+  const cleanedDest = opDestination.trim().replace(/^AC-?/i, '');
+  const parsedDestId = parseInt(cleanedDest, 10);
+
   return (
     <div className="animate-reveal-down">
       <button 
@@ -170,13 +176,45 @@ const AccountDetail = () => {
         description={`Detailed view and operational history for account endpoint.`}
       />
 
-      <div className="surface" style={{ marginBottom: 'var(--spacing-8)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--spacing-8)' }}>
+      {/* Account Metrics Surface */}
+      <div className="surface" style={{ marginBottom: 'var(--spacing-6)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--spacing-6)' }}>
+        <div>
+          <span className="meta-label">ACCOUNT NUMBER / ID</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--spacing-3)', marginTop: 'var(--spacing-1)' }}>
+            <span className="font-mono" style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+              AC-{account.account_id.toString().padStart(4, '0')}
+            </span>
+            <button 
+              onClick={() => {
+                navigator.clipboard.writeText(account.account_id.toString());
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              className="meta-label"
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--color-divider)',
+                padding: '2px 8px',
+                cursor: 'pointer',
+                color: copied ? 'var(--color-positive)' : 'var(--color-text-secondary)',
+                fontSize: '0.75rem'
+              }}
+            >
+              {copied ? '✓ COPIED' : 'COPY ID'}
+            </button>
+          </div>
+          <div className="font-mono text-muted" style={{ fontSize: '0.8rem', marginTop: '4px' }}>
+            Direct ID: <strong>{account.account_id}</strong>
+          </div>
+        </div>
+
         <div>
           <span className="meta-label">CURRENT BALANCE</span>
           <div className="font-serif" style={{ fontSize: '2.5rem', lineHeight: 1.1, color: 'var(--color-text-primary)' }}>
             ₹{(Number(account.balance) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </div>
         </div>
+
         <div>
           <span className="meta-label">ACCOUNT STATUS</span>
           <div className="font-mono" style={{ 
@@ -186,12 +224,57 @@ const AccountDetail = () => {
             {account.status}
           </div>
         </div>
+
         <div>
           <span className="meta-label">ESTABLISHED</span>
           <div className="font-mono" style={{ fontSize: '1.125rem' }}>
             {new Date(account.created_at).toLocaleDateString('en-IN')}
           </div>
         </div>
+      </div>
+
+      {/* Account ID Transfer Helper Banner */}
+      <div style={{
+        marginBottom: 'var(--spacing-8)',
+        padding: 'var(--spacing-3) var(--spacing-4)',
+        background: 'var(--color-bg-surface)',
+        border: '1px solid var(--color-divider)',
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 'var(--spacing-3)'
+      }}>
+        <div>
+          <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Account ID for Receiving Transfers:</span>{' '}
+          <span className="font-mono" style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-text-primary)', background: 'var(--color-bg-primary)', padding: '2px 8px', border: '1px solid var(--color-divider)' }}>
+            {account.account_id}
+          </span>
+          <span className="text-muted" style={{ fontSize: '0.8125rem', marginLeft: 'var(--spacing-2)' }}>
+            (or formatted as <code>AC-{account.account_id.toString().padStart(4, '0')}</code>)
+          </span>
+          <div className="text-muted" style={{ fontSize: '0.75rem', marginTop: '2px' }}>
+            Provide this Account ID to other LedgerCore users when requesting money.
+          </div>
+        </div>
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(account.account_id.toString());
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }}
+          className="meta-label"
+          style={{
+            background: 'var(--color-bg-primary)',
+            border: '1px solid var(--color-divider)',
+            padding: '6px 12px',
+            cursor: 'pointer',
+            fontSize: '0.75rem',
+            color: copied ? 'var(--color-positive)' : 'var(--color-text-primary)'
+          }}
+        >
+          {copied ? '✓ COPIED ACCOUNT ID' : 'COPY ACCOUNT ID'}
+        </button>
       </div>
 
       {opSuccess && (
@@ -232,22 +315,21 @@ const AccountDetail = () => {
                 {activeOperation === 'TRANSFER' ? 'FROM ACCOUNT' : 'ACCOUNT'}
               </span>
               <div className="font-mono">
-                •••• {account.account_id.toString().slice(-4).padStart(4, '0')} — {account.account_type}
+                AC-{account.account_id.toString().padStart(4, '0')} (Account ID: {account.account_id}) — {account.account_type}
               </div>
             </div>
 
             {activeOperation === 'TRANSFER' && (
               <div>
-                <span className="meta-label" style={{ display: 'block', marginBottom: 'var(--spacing-2)' }}>RECIPIENT ACCOUNT</span>
+                <span className="meta-label" style={{ display: 'block', marginBottom: 'var(--spacing-2)' }}>
+                  RECIPIENT ACCOUNT NUMBER / ID
+                </span>
                 <input 
                   type="text"
-                  placeholder="Enter numeric account ID (max 12 digits)"
-                  maxLength={12}
+                  placeholder="Enter recipient Account ID (e.g. 2 or AC-0002)"
+                  maxLength={16}
                   value={opDestination} 
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, ''); // only allow digits
-                    setOpDestination(val);
-                  }}
+                  onChange={(e) => setOpDestination(e.target.value)}
                   className="font-mono"
                   style={{ 
                     width: '100%', 
@@ -257,6 +339,9 @@ const AccountDetail = () => {
                     color: 'var(--color-text-primary)'
                   }}
                 />
+                <span className="text-muted" style={{ display: 'block', fontSize: '0.75rem', marginTop: '4px' }}>
+                  Enter the recipient's numeric Account ID (e.g., 2) or formatted account number (e.g., AC-0002)
+                </span>
               </div>
             )}
 
@@ -329,11 +414,13 @@ const AccountDetail = () => {
           <div style={{ display: 'grid', gap: 'var(--spacing-6)', marginBottom: 'var(--spacing-8)' }}>
             <div>
               <span className="meta-label" style={{ display: 'block', marginBottom: 'var(--spacing-2)' }}>FROM</span>
-              <div className="font-mono">•••• {account.account_id.toString().slice(-4).padStart(4, '0')}</div>
+              <div className="font-mono">AC-{account.account_id.toString().padStart(4, '0')} (Account ID: {account.account_id})</div>
             </div>
             <div>
               <span className="meta-label" style={{ display: 'block', marginBottom: 'var(--spacing-2)' }}>TO</span>
-              <div className="font-mono">•••• {opDestination.toString().slice(-4).padStart(4, '0')}</div>
+              <div className="font-mono">
+                {!isNaN(parsedDestId) ? `AC-${parsedDestId.toString().padStart(4, '0')} (Account ID: ${parsedDestId})` : opDestination}
+              </div>
             </div>
             <div>
               <span className="meta-label" style={{ display: 'block', marginBottom: 'var(--spacing-2)' }}>AMOUNT</span>
