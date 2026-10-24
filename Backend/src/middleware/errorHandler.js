@@ -46,6 +46,13 @@ export function errorHandler(err, req, res, next) {
     });
   }
 
+  if (err.code === "ECONNREFUSED" || err.code === "ETIMEDOUT" || err.code === "ENOTFOUND") {
+    return res.status(503).json({
+      success: false,
+      error: "Database connection failed. Please ensure PostgreSQL is running and credentials are configured.",
+    });
+  }
+
   res.status(err.status || 500).json({
     success: false,
     error: err.message || "Internal server error",

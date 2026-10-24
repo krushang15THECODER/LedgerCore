@@ -4,14 +4,23 @@ import pool, { testConnection } from "../db/pool.js";
 const router = Router();
 
 router.get("/", async (req, res) => {
-  const db = await testConnection();
+  try {
+    const db = await testConnection();
 
-  res.json({
-    success: true,
-    service: "LedgerCore API",
-    database: "connected",
-    time: db.now,
-  });
+    res.json({
+      success: true,
+      service: "LedgerCore API",
+      database: "connected",
+      time: db.now,
+    });
+  } catch (err) {
+    res.status(503).json({
+      success: false,
+      service: "LedgerCore API",
+      database: "disconnected",
+      error: "PostgreSQL unavailable: " + err.message,
+    });
+  }
 });
 
 router.get("/reconciliation", async (req, res) => {
