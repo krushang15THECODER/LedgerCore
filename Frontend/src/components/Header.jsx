@@ -38,6 +38,7 @@ const Header = () => {
           <NavLink to="/" style={navLinkStyle} end>OVERVIEW</NavLink>
           <NavLink to="/accounts" style={navLinkStyle}>ACCOUNTS</NavLink>
           <NavLink to="/transactions" style={navLinkStyle}>TRANSACTIONS</NavLink>
+          <NavLink to="/xml-view" style={navLinkStyle}>XML VIEW</NavLink>
         </nav>
         
         {/* Right: System Area */}
@@ -68,6 +69,7 @@ const Header = () => {
           <NavLink to="/" style={navLinkStyle} onClick={() => setIsMobileMenuOpen(false)} end>OVERVIEW</NavLink>
           <NavLink to="/accounts" style={navLinkStyle} onClick={() => setIsMobileMenuOpen(false)}>ACCOUNTS</NavLink>
           <NavLink to="/transactions" style={navLinkStyle} onClick={() => setIsMobileMenuOpen(false)}>TRANSACTIONS</NavLink>
+          <NavLink to="/xml-view" style={navLinkStyle} onClick={() => setIsMobileMenuOpen(false)}>XML VIEW</NavLink>
           <hr className="hr-structural" style={{ margin: 'var(--spacing-4) 0' }} />
           <div className="meta-label">USER: {user?.name}</div>
           <button onClick={handleLogout} style={{ ...navLinkStyle({ isActive: false }), textAlign: 'left', marginTop: 'var(--spacing-2)', color: 'var(--color-negative)' }}>

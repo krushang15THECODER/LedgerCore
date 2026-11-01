@@ -8,6 +8,7 @@ import transactionsRouter from "./routes/transactions.js";
 import healthRouter from "./routes/health.js";
 import authRouter from "./routes/auth.js";
 import dashboardRouter from "./routes/dashboard.js";
+import xmlRoutes from "./routes/xmlRoutes.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -50,6 +51,7 @@ app.use("/api/dashboard", dashboardRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/accounts", accountsRouter);
 app.use("/api/transactions", transactionsRouter);
+app.use("/api/xml", xmlRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

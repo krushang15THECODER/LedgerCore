@@ -9,6 +9,7 @@ import Accounts from './pages/Accounts';
 import AccountDetail from './pages/AccountDetail';
 import Transactions from './pages/Transactions';
 import TransactionDetail from './pages/TransactionDetail';
+import XMLDemo from './pages/XMLDemo';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <Route path="/accounts/:accountId" element={<AccountDetail />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/transactions/:txnId" element={<TransactionDetail />} />
+          <Route path="/xml-view" element={<XMLDemo />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>
